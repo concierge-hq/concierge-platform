@@ -70,7 +70,10 @@ Workflow: stock_test
 Stage: browse (step 1 of 2)
 Description: Browse stocks
 
-Available tools: search, add_to_cart
+Available tools:
+  • search(symbol: string) - Search for stock
+  • add_to_cart(symbol: string, quantity: integer) - Add stock to cart
+
 Next stages: portfolio
 Previous stages: 
 
@@ -124,7 +127,10 @@ Workflow: stock_test
 Stage: browse (step 1 of 2)
 Description: Browse stocks
 
-Available tools: search, add_to_cart
+Available tools:
+  • search(symbol: string) - Search for stock
+  • add_to_cart(symbol: string, quantity: integer) - Add stock to cart
+
 Next stages: portfolio
 Previous stages: 
 
@@ -179,7 +185,9 @@ Workflow: stock_test
 Stage: portfolio (step 2 of 2)
 Description: View portfolio
 
-Available tools: view_holdings
+Available tools:
+  • view_holdings() - View current holdings
+
 Next stages: browse
 Previous stages: 
 

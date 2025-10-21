@@ -26,8 +26,9 @@ class StageMessage(Communications):
         tools_lines = []
         for tool in stage.tools.values():
             schema = tool.to_schema()
-            properties = schema.get("properties", {})
-            required = schema.get("required", [])
+            input_schema = schema.get("input_schema", {})
+            properties = input_schema.get("properties", {})
+            required = input_schema.get("required", [])
             
             params = []
             for param_name, param_info in properties.items():
