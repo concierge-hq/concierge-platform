@@ -4,7 +4,7 @@ Demonstrates server managing sessions and routing to language engines.
 """
 import asyncio
 from pydantic import BaseModel, Field
-from concierge import State, tool, stage, workflow, construct, Server
+from concierge import State, tool, stage, workflow, construct, SessionManager
 
 
 @construct()
@@ -62,24 +62,24 @@ class StockWorkflow:
 def test_server_create_session():
     """Test creating a new session"""
     workflow = StockWorkflow._workflow
-    server = Server(workflow)
+    session_manager = SessionManager(workflow)
     
-    session_id = server.create_session()
+    session_id = session_manager.create_session()
     
     # Should return a UUID string
     assert isinstance(session_id, str)
     assert len(session_id) > 0
-    assert session_id in server.get_active_sessions()
+    assert session_id in session_manager.get_active_sessions()
 
 
 def test_server_handle_tool_request():
     """Test handling tool execution request"""
     workflow = StockWorkflow._workflow
-    server = Server(workflow)
+    session_manager = SessionManager(workflow)
     
-    session_id = server.create_session()
+    session_id = session_manager.create_session()
     
-    response = asyncio.run(server.handle_request(session_id, {
+    response = asyncio.run(session_manager.handle_request(session_id, {
         "action": "method_call",
         "tool": "search",
         "args": {"symbol": "AAPL"}
@@ -93,11 +93,11 @@ def test_server_handle_tool_request():
 def test_server_handle_transition():
     """Test handling stage transition"""
     workflow = StockWorkflow._workflow
-    server = Server(workflow)
+    session_manager = SessionManager(workflow)
     
-    session_id = server.create_session()
+    session_id = session_manager.create_session()
     
-    response = asyncio.run(server.handle_request(session_id, {
+    response = asyncio.run(session_manager.handle_request(session_id, {
         "action": "stage_transition",
         "stage": "portfolio"
     }))
@@ -109,12 +109,12 @@ def test_server_handle_transition():
 def test_server_multiple_sessions():
     """Test managing multiple concurrent sessions"""
     workflow = StockWorkflow._workflow
-    server = Server(workflow)
+    session_manager = SessionManager(workflow)
     
-    session_1 = server.create_session()
-    session_2 = server.create_session()
+    session_1 = session_manager.create_session()
+    session_2 = session_manager.create_session()
     
-    active = server.get_active_sessions()
+    active = session_manager.get_active_sessions()
     assert session_1 in active
     assert session_2 in active
     assert len(active) == 2
@@ -124,24 +124,24 @@ def test_server_multiple_sessions():
 def test_server_terminate_session():
     """Test terminating a session"""
     workflow = StockWorkflow._workflow
-    server = Server(workflow)
+    session_manager = SessionManager(workflow)
     
-    session_id = server.create_session()
+    session_id = session_manager.create_session()
     
-    server.terminate_session(session_id)
-    assert session_id not in server.get_active_sessions()
+    session_manager.terminate_session(session_id)
+    assert session_id not in session_manager.get_active_sessions()
 
 
 def test_server_session_isolation():
     """Test that sessions are isolated from each other"""
     async def run_test():
         workflow = StockWorkflow._workflow
-        server = Server(workflow)
+        session_manager = SessionManager(workflow)
         
-        session_1 = server.create_session()
-        session_2 = server.create_session()
+        session_1 = session_manager.create_session()
+        session_2 = session_manager.create_session()
         
-        response_1 = await server.handle_request(session_1, {
+        response_1 = await session_manager.handle_request(session_1, {
             "action": "method_call",
             "tool": "add_to_cart",
             "args": {"symbol": "AAPL", "quantity": 10}
@@ -150,7 +150,7 @@ def test_server_session_isolation():
         assert '"symbol": "AAPL"' in response_1
         assert '"quantity": 10' in response_1
         
-        response_2 = await server.handle_request(session_2, {
+        response_2 = await session_manager.handle_request(session_2, {
             "action": "method_call",
             "tool": "add_to_cart",
             "args": {"symbol": "GOOGL", "quantity": 5}
@@ -159,7 +159,7 @@ def test_server_session_isolation():
         assert '"symbol": "GOOGL"' in response_2
         assert '"quantity": 5' in response_2
         
-        active = server.get_active_sessions()
+        active = session_manager.get_active_sessions()
         assert session_1 in active
         assert session_2 in active
         assert len(active) == 2
@@ -171,10 +171,10 @@ def test_server_invalid_session_handle_request():
     """Test that invalid session raises KeyError on handle_request"""
     async def run_test():
         workflow = StockWorkflow._workflow
-        server = Server(workflow)
+        session_manager = SessionManager(workflow)
         
         try:
-            await server.handle_request("invalid-session-id", {
+            await session_manager.handle_request("invalid-session-id", {
                 "action": "method_call",
                 "tool": "search",
                 "args": {"symbol": "AAPL"}
@@ -189,10 +189,10 @@ def test_server_invalid_session_handle_request():
 def test_server_invalid_session_terminate():
     """Test that invalid session raises KeyError on terminate"""
     workflow = StockWorkflow._workflow
-    server = Server(workflow)
+    session_manager = SessionManager(workflow)
     
     try:
-        server.terminate_session("invalid-session-id")
+        session_manager.terminate_session("invalid-session-id")
         assert False, "Should have raised KeyError"
     except KeyError as e:
         assert "invalid-session-id" in str(e)

@@ -1,6 +1,6 @@
 """
-Simple server that routes requests to language engine.
-Acts as a gateway between users and the workflow orchestration.
+Session Manager - Core application logic for managing sessions.
+Transport-agnostic: can be used directly or wrapped by HTTP/WebSocket/etc.
 """
 import uuid
 from typing import Dict
@@ -8,10 +8,10 @@ from concierge.core.workflow import Workflow
 from concierge.engine.language_engine import LanguageEngine
 
 
-class Server:
+class SessionManager:
     """
-    Server manages sessions and delegates requests to language engines.
-    Each session gets its own language engine instance.
+    SessionManager is the core application that manages sessions and language engines.
+    
     """
     
     def __init__(self, workflow: Workflow):
