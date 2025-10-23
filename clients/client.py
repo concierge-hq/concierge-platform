@@ -30,12 +30,19 @@ class Client:
         self.session_id = None
     
     def handshake(self) -> str:
-        response = requests.post(CONCIERGE_URL, json={"action": "handshake"})
+        request_payload = {"action": "handshake"}
+        print(f"\n[CLIENT → SERVER] {json.dumps(request_payload)}")
+        
+        response = requests.post(CONCIERGE_URL, json=request_payload)
         self.session_id = response.headers.get('X-Session-Id')
+        
+        print(f"[SERVER → CLIENT] {response.text}")
         return response.text
 
     def chat(self, user_input: str) -> str:
         self.messages.append({"role": "user", "content": user_input})
+        
+        print(f"\n[CLIENT → LLM] {json.dumps(self.messages[-1])}")
         
         response = self.llm.chat.completions.create(
             model="gpt-4",
@@ -44,6 +51,8 @@ class Client:
         
         reply = response.choices[0].message.content
         self.messages.append({"role": "assistant", "content": reply})
+        
+        print(f"[LLM → CLIENT] {reply}")
         
         return reply
 
@@ -54,8 +63,13 @@ class Client:
             
             if self.session_id:
                 payload["session_id"] = self.session_id
-                
+            
+            print(f"\n[CLIENT → SERVER] {json.dumps(payload)}")
+            
             response = requests.post(CONCIERGE_URL, json=payload)
+            
+            print(f"[SERVER → CLIENT] {response.text}")
+            
             return response.text
         except Exception as e:
             return f"Error calling concierge: {e}"
@@ -76,7 +90,8 @@ class Client:
 
             elif signal == "initiate_conversation":
                 result = self.handshake()
-                return False, result
+                llm_response = self.chat(f"Concierge response: {result}")
+                return self.process_response(llm_response)
                 
             elif signal == "terminate":
                 return True, "Goodbye!"
@@ -86,7 +101,6 @@ class Client:
             return False, f"Invalid JSON: {reply}"
 
     def run(self):
-        
         while True:
             try:
                 user_input = input("You: ").strip()

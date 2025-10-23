@@ -80,8 +80,27 @@ class TerminateSession(BaseModel):
     )
 
 
+class StateInput(BaseModel):
+    """Contract for providing state variables required for transitions
+    
+    Example:
+        {"action": "state_input", "state_updates": {"username": "alice", "age": 28}}
+    """
+    action: Literal["state_input"] = Field(
+        description="Action type identifier for state input"
+    )
+    state_updates: dict[str, Any] = Field(
+        description="State variables as key-value pairs where key is the field name and value is the field value",
+        examples=[
+            {"username": "john_doe", "age": 25},
+            {"symbol": "AAPL", "quantity": 10}
+        ]
+    )
+
+
 # Auto-generated example instances from Field(examples=[...]) metadata
 TOOL_CALL_EXAMPLE = _auto_example(ToolCall)
 STAGE_TRANSITION_EXAMPLE = _auto_example(StageTransition)
 TERMINATE_SESSION_EXAMPLE = _auto_example(TerminateSession)
+STATE_INPUT_EXAMPLE = _auto_example(StateInput)
 

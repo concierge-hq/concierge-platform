@@ -5,7 +5,7 @@ Focus is on showing the framework, not real stock logic.
 """
 import asyncio
 from pydantic import BaseModel, Field
-from concierge.core import construct, State, tool, stage, workflow
+from concierge.core import construct, State, tool, stage, workflow, StateTransfer
 
 
 # Define constructs
@@ -91,12 +91,19 @@ class StockWorkflow:
     transact = TransactStage
     portfolio = PortfolioStage
     
-    # Define transitions
+    # Define stage transitions
     transitions = {
-        browse: [transact, portfolio],     # From browse → transact or portfolio
-        transact: [portfolio, browse],     # From transact → portfolio or back to browse
-        portfolio: [browse]                # From portfolio → back to browse
+        browse: [transact, portfolio],
+        transact: [portfolio, browse],
+        portfolio: [browse],
     }
+    
+    # Define how state propagates between stages (optional)
+    state_management = [
+        (browse, transact, ["symbol", "quantity"]),  # Transfer specific fields
+        (browse, portfolio, StateTransfer.ALL),       # Transfer everything
+        # transact -> portfolio: auto (not listed = default)
+    ]
 
 
 # Demo

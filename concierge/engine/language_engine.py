@@ -2,13 +2,14 @@
 import json
 from concierge.core.workflow import Workflow
 from concierge.core.actions import MethodCallAction, StageTransitionAction
-from concierge.core.results import Result, ToolResult, TransitionResult, ErrorResult
+from concierge.core.results import Result, ToolResult, TransitionResult, ErrorResult, StateInputRequiredResult
 from concierge.engine.orchestrator import Orchestrator
 from concierge.communications import (
     StageMessage,
     ToolResultMessage,
     TransitionResultMessage,
-    ErrorMessage
+    ErrorMessage,
+    StateInputRequiredMessage
 )
 
 
@@ -47,6 +48,7 @@ class LanguageEngine:
         - {"action": "handshake"}
         - {"action": "method_call", "tool": "tool_name", "args": {...}}
         - {"action": "stage_transition", "stage": "stage_name"}
+        - {"action": "state_input", "data": {"field1": "value1", ...}}
         """
         try:
             action_type = llm_json.get("action")
@@ -71,7 +73,16 @@ class LanguageEngine:
                 result = await self.orchestrator.execute_stage_transition(action)
                 if isinstance(result, TransitionResult):
                     return self._format_transition_result(result)
+                elif isinstance(result, StateInputRequiredResult):
+                    return self._format_state_input_required(result)
                 return self._format_error_result(result)
+            
+            elif action_type == "state_input":
+                state_data = llm_json.get("data", {})
+                self.orchestrator.populate_state(state_data)
+                stage = self.orchestrator.get_current_stage()
+                state = stage.local_state
+                return StageMessage().render(stage, self.workflow, state)
             
             else:
                 return self._format_error_result(ErrorResult(message=f"Unknown action type: {action_type}"))
@@ -97,4 +108,8 @@ class LanguageEngine:
     def _format_error_result(self, result: ErrorResult) -> str:
         """Format error message"""
         return ErrorMessage().render(result)
+    
+    def _format_state_input_required(self, result: StateInputRequiredResult) -> str:
+        """Format state input required message"""
+        return StateInputRequiredMessage().render(result)
 

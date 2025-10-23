@@ -2,10 +2,16 @@
 Workflow: Blueprint definition for stages and transitions.
 """
 from typing import Dict, Optional, Type, List, Union
+from enum import Enum
 import inspect
 
 from concierge.core.stage import Stage
 from concierge.core.state import State
+
+
+class StateTransfer(Enum):
+    ALL = "all"
+    NONE = "none"
 
 
 class Workflow:
@@ -23,6 +29,7 @@ class Workflow:
         self.initial_stage: Optional[str] = None
         self.cursor: Optional[Stage] = None
         self._incoming_edges: Dict[str, List[str]] = {}
+        self.state_propagation: Dict[tuple, Union[str, List[str]]] = {}
     
     def add_stage(self, stage: Stage, initial: bool = False) -> 'Workflow':
         """Add a stage to the workflow"""
@@ -120,12 +127,21 @@ class Workflow:
                 "allowed": self.get_stage(from_stage).transitions
             }
         
+        source = self.get_stage(from_stage)
         target = self.get_stage(to_stage)
-        missing = target.get_missing_prerequisites(global_state)
+        
+        propagation_config = self.get_propagation_config(from_stage, to_stage)
+        
+        missing = target.get_missing_prerequisites(
+            global_state, 
+            source.local_state, 
+            propagation_config
+        )
         
         if missing:
             return {
                 "valid": False,
+                "reason": "missing_state",
                 "error": f"Stage '{to_stage}' requires: {missing}",
                 "missing": missing
             }
@@ -134,48 +150,54 @@ class Workflow:
     
     def transition_to(self, to_stage: str) -> Stage:
         """Transition cursor to new stage and return target stage"""
+        from_stage = self.cursor
         target = self.get_stage(to_stage)
-        target.local_state = State()
+        
+        if from_stage:
+            config = self.get_propagation_config(from_stage.name, to_stage)
+            new_state = State()
+            
+            if config == "all":
+                for key, value in from_stage.local_state._data.items():
+                    new_state.set(key, value)
+            elif config != "none" and isinstance(config, list):
+                for key in config:
+                    if from_stage.local_state.has(key):
+                        new_state.set(key, from_stage.local_state.get(key))
+            
+            target.local_state = new_state
+        else:
+            target.local_state = State()
+        
         self.cursor = target
         return target
+    
+    def get_propagation_config(self, from_stage: str, to_stage: str) -> Union[str, List[str]]:
+        """Get state propagation config for a transition"""
+        return self.state_propagation.get((from_stage, to_stage), "all")
 
 
 # Decorator
 class workflow:
     """
-    Declarative workflow builder. Auto-discovers stage classes and transitions.
+    Declarative workflow builder.
     
-    Usage:
-        @stage(name="browse")
-        class BrowseStage:
-            @tool()
-            def search(...): ...
+    @workflow(name="stock_exchange")
+    class StockWorkflow:
+        browse = BrowseStage
+        transact = TransactStage
+        portfolio = PortfolioStage
         
-        @workflow(name="stock_exchange")
-        class StockWorkflow:
-            # Define stages (first = initial)
-            browse = BrowseStage
-            transact = TransactStage
-            portfolio = PortfolioStage
-            
-            # Define transitions (semantic dict - uses class refs!)
-            transitions = {
-                browse: [transact, portfolio],     # From browse → transact or portfolio
-                transact: [portfolio, browse],     # From transact → portfolio or browse
-                portfolio: [browse]                # From portfolio → browse
-            }
-            
-            # Also supports string-based dict:
-            transitions = {
-                "browse": ["transact", "portfolio"],
-                "transact": ["portfolio", "browse"],
-                "portfolio": ["browse"]
-            }
-    
-    The decorator will:
-    1. Find all @stage decorated classes
-    2. Extract transitions dict (supports class refs or strings)
-    3. Auto-register stages and wire transitions
+        transitions = {
+            browse: [transact, portfolio],
+            transact: [portfolio, browse],
+            portfolio: [browse],
+        }
+        
+        state_management = [
+            (browse, transact, ["symbol", "quantity"]),
+            (browse, portfolio, StateTransfer.ALL),
+        ]
     """
     
     def __init__(self, name: Optional[str] = None, description: str = ""):
@@ -190,21 +212,17 @@ class workflow:
         workflow_obj = Workflow(name=workflow_name, description=workflow_desc)
         
         for attr_name, attr_value in cls.__dict__.items():
-            if attr_name.startswith('_') or attr_name == 'transitions':
-                continue
-            
             if isinstance(attr_value, Stage):
-                is_initial = len(workflow_obj.stages) == 0
-                workflow_obj.add_stage(attr_value, initial=is_initial)
+                workflow_obj.add_stage(attr_value, initial=len(workflow_obj.stages) == 0)
         
-        transitions_def = getattr(cls, 'transitions', None)
-        if transitions_def and isinstance(transitions_def, dict):
-            for from_stage, to_stages in transitions_def.items():
-                if not isinstance(to_stages, list):
-                    to_stages = [to_stages]
-                
-                to_names = [ts.name for ts in to_stages]
-                workflow_obj.stages[from_stage.name].transitions = to_names
+        if hasattr(cls, 'transitions'):
+            for from_stage, to_stages in cls.transitions.items():
+                workflow_obj.stages[from_stage.name].transitions = [ts.name for ts in to_stages]
+        
+        if hasattr(cls, 'state_management'):
+            for from_stage, to_stage, config in cls.state_management:
+                cfg = config.value if isinstance(config, StateTransfer) else config
+                workflow_obj.state_propagation[(from_stage.name, to_stage.name)] = cfg
         
         cls._workflow = workflow_obj
         return cls

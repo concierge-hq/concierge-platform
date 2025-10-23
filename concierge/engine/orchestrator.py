@@ -2,12 +2,13 @@
 Orchestrator: Core business logic for workflow execution.
 """
 from dataclasses import dataclass, field
+from typing import Optional
 
 from concierge.core.state import State
 from concierge.core.stage import Stage
 from concierge.core.workflow import Workflow
 from concierge.core.actions import Action, MethodCallAction, StageTransitionAction
-from concierge.core.results import Result, ToolResult, TransitionResult, ErrorResult
+from concierge.core.results import Result, ToolResult, TransitionResult, ErrorResult, StateInputRequiredResult
 
 
 @dataclass
@@ -20,12 +21,14 @@ class Orchestrator:
     session_id: str
     state: State = field(default_factory=State)
     history: list = field(default_factory=list)
+    pending_transition: Optional[str] = None
     
     def __post_init__(self):
         """Initialize session with workflow's initial stage"""
         self.workflow.initialize()
         self.state = State()
         self.history = []
+        self.pending_transition = None
     
     def get_current_stage(self) -> Stage:
         """Get current stage object"""
@@ -61,12 +64,22 @@ class Orchestrator:
         )
         
         if not validation["valid"]:
-            return ErrorResult(
-                message=validation["error"],
-                allowed=validation.get("allowed")
-            )
+            if validation.get("reason") == "missing_state":
+                self.pending_transition = action.target_stage
+                return StateInputRequiredResult(
+                    target_stage=action.target_stage,
+                    message=f"To transition to '{action.target_stage}', please provide: {validation['missing']}",
+                    required_fields=validation["missing"]
+                )
+            else:
+                return ErrorResult(
+                    message=validation["error"],
+                    allowed=validation.get("allowed")
+                )
         
         target = self.workflow.transition_to(action.target_stage)
+        self.pending_transition = None
+        
         self.history.append({
             "action": "stage_transition",
             "from": stage.name,
@@ -75,9 +88,17 @@ class Orchestrator:
         
         return TransitionResult(
             from_stage=stage.name,
-            to_stage=action.target_stage,
-            prompt=target.generate_prompt(target.local_state)
+            to_stage=action.target_stage
         )
+    
+    def populate_state(self, state_data: dict) -> None:
+        """
+        Store provided state in current stage's local_state.
+        User will manually request transition again after this.
+        """
+        current_stage = self.get_current_stage()
+        for key, value in state_data.items():
+            current_stage.local_state.set(key, value)
     
     def get_session_info(self) -> dict:
         """Get current session information"""

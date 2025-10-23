@@ -75,48 +75,42 @@ class Stage:
         """Check if transition to target stage is allowed"""
         return target_stage in self.transitions
     
-    def get_missing_prerequisites(self, state: State) -> List[str]:
-        """Get missing prerequisites for entering this stage (Pydantic models only)"""
+    def get_missing_prerequisites(
+        self, 
+        state: State, 
+        source_state: Optional[State] = None,
+        propagation_config: Optional[Any] = None
+    ) -> List[str]:
+        """
+        Get missing prerequisites for entering this stage (Pydantic models only).
+        
+        Args:
+            state: The global state to check against
+            source_state: The source stage's local state (for transitions)
+            propagation_config: State propagation config - "all", "none", or list of field names
+        
+        Returns:
+            List of missing field names that won't be satisfied by state propagation
+        """
+        propagated_fields = set()
+        if source_state is not None and propagation_config is not None:
+            if propagation_config == "all":
+                propagated_fields = set(source_state._data.keys())
+            elif propagation_config == "none":
+                propagated_fields = set()
+            elif isinstance(propagation_config, list):
+                propagated_fields = {
+                    field for field in propagation_config 
+                    if source_state.has(field)
+                }
         
         missing = []
         for prereq in self.prerequisites:
             for field_name in prereq.model_fields:
-                if not state.has(field_name):
+                if not state.has(field_name) and field_name not in propagated_fields:
                     missing.append(field_name)
+        
         return missing
-    
-    def generate_prompt(self, state: State, include_tools: bool = True) -> str:
-        """Generate LLM prompt for this stage"""
-        prompt_parts = [
-            f"You are in the '{self.name}' stage.",
-            f"Description: {self.description}",
-            ""
-        ]
-        
-        if state.data:
-            prompt_parts.append("Current State:")
-            for construct_name, construct_data in state.data.items():
-                if construct_data:
-                    prompt_parts.append(f"  {construct_name}: {construct_data}")
-            prompt_parts.append("")
-        
-        # Add available tools
-        if include_tools and self.tools:
-            prompt_parts.append("Available Tools:")
-            for tool in self.tools.values():
-                prompt_parts.append(f"  - {tool.name}: {tool.description}")
-            prompt_parts.append("")
-            
-            prompt_parts.append("To use a tool, respond with:")
-            prompt_parts.append('{"action": "tool", "tool": "tool_name", "args": {...}}')
-            prompt_parts.append("")
-        
-        # Add transition options
-        if self.transitions:
-            prompt_parts.append(f"You can transition to: {', '.join(self.transitions)}")
-            prompt_parts.append('To transition: {"action": "transition", "stage": "stage_name"}')
-        
-        return "\n".join(prompt_parts)
 
 
 # Decorator

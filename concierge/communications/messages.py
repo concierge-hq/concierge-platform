@@ -68,13 +68,13 @@ Available tools in this stage:
 {available_tools}
 
 Available stage transitions:
-  → Next stages: {next_stages}
-  → Previous stages: {previous_stages}
+  -> Next stages: {next_stages}
+  -> Previous stages: {previous_stages}
 
 Current state:
 {state}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+================================================================================
 
 What would you like to do?
 
@@ -89,22 +89,4 @@ What would you like to do?
 3. End session
    Format: {terminate_session_format}
    Example: {terminate_session_example}"""
-
-
-TRANSITION_RESULT_MESSAGE = """Successfully transitioned from '{from_stage}' to '{to_stage}'.
-
-{stage_message}"""
-
-
-TOOL_RESULT_MESSAGE = """Tool '{tool_name}' executed successfully.
-
-Result:
-{result}
-
-{stage_message}"""
-
-
-ERROR_MESSAGE = """Error: {message}
-
-{context}"""
 

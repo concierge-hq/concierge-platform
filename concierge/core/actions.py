@@ -16,5 +16,11 @@ class StageTransitionAction:
     target_stage: str
 
 
-Action = MethodCallAction | StageTransitionAction
+@dataclass
+class StateInputAction:
+    """Action to update state with provided values"""
+    state_updates: dict[str, Any]
+
+
+Action = MethodCallAction | StageTransitionAction | StateInputAction
 
