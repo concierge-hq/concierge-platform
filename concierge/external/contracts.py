@@ -98,6 +98,11 @@ class StateInput(BaseModel):
     )
 
 
+ACTION_METHOD_CALL = ToolCall.model_fields["action"].annotation.__args__[0]
+ACTION_STAGE_TRANSITION = StageTransition.model_fields["action"].annotation.__args__[0]
+ACTION_TERMINATE_SESSION = TerminateSession.model_fields["action"].annotation.__args__[0]
+ACTION_STATE_INPUT = StateInput.model_fields["action"].annotation.__args__[0]
+
 # Auto-generated example instances from Field(examples=[...]) metadata
 TOOL_CALL_EXAMPLE = _auto_example(ToolCall)
 STAGE_TRANSITION_EXAMPLE = _auto_example(StageTransition)

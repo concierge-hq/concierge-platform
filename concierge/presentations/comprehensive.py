@@ -1,6 +1,12 @@
 """Comprehensive Presentation - full context with stage, tools, state, etc."""
 import json
 from concierge.presentations.base import Presentation
+from concierge.external.contracts import (
+    ToolCall, 
+    StageTransition,
+    ACTION_METHOD_CALL,
+    ACTION_STAGE_TRANSITION
+)
 
 
 class ComprehensivePresentation(Presentation):
@@ -72,12 +78,12 @@ class ComprehensivePresentation(Presentation):
             tool_lines.append(f"    Description: {tool.description}")
             tool_lines.append(f"    Call Format:")
             
-            example_call = {
-                "action": "tool",
-                "tool_name": tool_name,
-                "arguments": self._generate_example_args(tool_schema["input_schema"])
-            }
-            tool_lines.append(f"      {json.dumps(example_call, indent=6)}")
+            example_call = ToolCall(
+                action=ACTION_METHOD_CALL,
+                tool=tool_name,
+                args=self._generate_example_args(tool_schema["input_schema"])
+            )
+            tool_lines.append(f"      {json.dumps(example_call.model_dump(), indent=6)}")
             tool_lines.append("")
         
         return "\n".join(tool_lines)
@@ -91,11 +97,12 @@ class ComprehensivePresentation(Presentation):
         for target_stage in stage.transitions:
             transition_lines.append(f"  Transition to: {target_stage}")
             
-            transition_call = {
-                "action": "transition",
-                "target_stage": target_stage
-            }
-            transition_lines.append(f"    {json.dumps(transition_call)}")
+            # Generate example using StageTransition contract
+            transition_call = StageTransition(
+                action=ACTION_STAGE_TRANSITION,
+                stage=target_stage
+            )
+            transition_lines.append(f"    {json.dumps(transition_call.model_dump())}")
             transition_lines.append("")
         
         return "\n".join(transition_lines)

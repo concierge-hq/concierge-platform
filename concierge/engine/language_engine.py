@@ -5,6 +5,12 @@ from concierge.core.actions import MethodCallAction, StageTransitionAction
 from concierge.core.results import Result, ToolResult, TransitionResult, ErrorResult, StateInputRequiredResult
 from concierge.engine.orchestrator import Orchestrator
 from concierge.presentations import ComprehensivePresentation
+from concierge.external.contracts import (
+    ACTION_METHOD_CALL,
+    ACTION_STAGE_TRANSITION,
+    ACTION_STATE_INPUT,
+    ACTION_TERMINATE_SESSION
+)
 from concierge.communications import (
     StageMessage,
     ToolResultMessage,
@@ -57,7 +63,7 @@ class LanguageEngine:
             if action_type == "handshake":
                 return self.get_initial_message()
             
-            elif action_type == "method_call":
+            elif action_type == ACTION_METHOD_CALL:
                 action = MethodCallAction(
                     tool_name=llm_json["tool"],
                     args=llm_json.get("args", {})
@@ -67,7 +73,7 @@ class LanguageEngine:
                     return self._format_tool_result(result)
                 return self._format_error_result(result)
             
-            elif action_type == "stage_transition":
+            elif action_type == ACTION_STAGE_TRANSITION:
                 action = StageTransitionAction(
                     target_stage=llm_json["stage"]
                 )
@@ -78,7 +84,7 @@ class LanguageEngine:
                     return self._format_state_input_required(result)
                 return self._format_error_result(result)
             
-            elif action_type == "state_input":
+            elif action_type == ACTION_STATE_INPUT:
                 state_data = llm_json.get("data", {})
                 self.orchestrator.populate_state(state_data)
                 stage = self.orchestrator.get_current_stage()

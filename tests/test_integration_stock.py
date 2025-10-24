@@ -2,6 +2,7 @@
 import asyncio
 from concierge.core import State, tool, stage, workflow
 from concierge.engine.language_engine import LanguageEngine
+from concierge.external.contracts import ACTION_METHOD_CALL, ACTION_STAGE_TRANSITION
 
 
 # Define simple stock workflow for testing
@@ -88,9 +89,9 @@ YOU MAY CHOOSE THE FOLLOWING ACTIONS:
     Description: Search for stock
     Call Format:
       {
-      "action": "tool",
-      "tool_name": "search",
-      "arguments": {
+      "action": "method_call",
+      "tool": "search",
+      "args": {
             "symbol": "<symbol>"
       }
 }
@@ -99,9 +100,9 @@ YOU MAY CHOOSE THE FOLLOWING ACTIONS:
     Description: Add stock to cart
     Call Format:
       {
-      "action": "tool",
-      "tool_name": "add_to_cart",
-      "arguments": {
+      "action": "method_call",
+      "tool": "add_to_cart",
+      "args": {
             "symbol": "<symbol>",
             "quantity": 0
       }
@@ -110,7 +111,7 @@ YOU MAY CHOOSE THE FOLLOWING ACTIONS:
 
 2. STAGE CALLS (Transitions):
   Transition to: portfolio
-    {"action": "transition", "target_stage": "portfolio"}
+    {"action": "stage_transition", "stage": "portfolio"}
 
 
 ================================================================================"""
@@ -168,9 +169,9 @@ YOU MAY CHOOSE THE FOLLOWING ACTIONS:
     Description: Search for stock
     Call Format:
       {
-      "action": "tool",
-      "tool_name": "search",
-      "arguments": {
+      "action": "method_call",
+      "tool": "search",
+      "args": {
             "symbol": "<symbol>"
       }
 }
@@ -179,9 +180,9 @@ YOU MAY CHOOSE THE FOLLOWING ACTIONS:
     Description: Add stock to cart
     Call Format:
       {
-      "action": "tool",
-      "tool_name": "add_to_cart",
-      "arguments": {
+      "action": "method_call",
+      "tool": "add_to_cart",
+      "args": {
             "symbol": "<symbol>",
             "quantity": 0
       }
@@ -190,7 +191,7 @@ YOU MAY CHOOSE THE FOLLOWING ACTIONS:
 
 2. STAGE CALLS (Transitions):
   Transition to: portfolio
-    {"action": "transition", "target_stage": "portfolio"}
+    {"action": "stage_transition", "stage": "portfolio"}
 
 
 ================================================================================"""
@@ -244,15 +245,15 @@ YOU MAY CHOOSE THE FOLLOWING ACTIONS:
     Description: View current holdings
     Call Format:
       {
-      "action": "tool",
-      "tool_name": "view_holdings",
-      "arguments": {}
+      "action": "method_call",
+      "tool": "view_holdings",
+      "args": {}
 }
 
 
 2. STAGE CALLS (Transitions):
   Transition to: browse
-    {"action": "transition", "target_stage": "browse"}
+    {"action": "stage_transition", "stage": "browse"}
 
 
 ================================================================================"""
@@ -304,10 +305,10 @@ def test_stock_workflow_full_conversation():
         assert "Holdings: AAPL: 10 shares" in response4
         
         assert len(orch.history) == 4
-        assert orch.history[0]["action"] == "method_call"
-        assert orch.history[1]["action"] == "method_call"
-        assert orch.history[2]["action"] == "stage_transition"
-        assert orch.history[3]["action"] == "method_call"
+        assert orch.history[0]["action"] == ACTION_METHOD_CALL
+        assert orch.history[1]["action"] == ACTION_METHOD_CALL
+        assert orch.history[2]["action"] == ACTION_STAGE_TRANSITION
+        assert orch.history[3]["action"] == ACTION_METHOD_CALL
     
     asyncio.run(run())
 
@@ -349,9 +350,9 @@ YOU MAY CHOOSE THE FOLLOWING ACTIONS:
     Description: Search for stock
     Call Format:
       {
-      "action": "tool",
-      "tool_name": "search",
-      "arguments": {
+      "action": "method_call",
+      "tool": "search",
+      "args": {
             "symbol": "<symbol>"
       }
 }
@@ -360,9 +361,9 @@ YOU MAY CHOOSE THE FOLLOWING ACTIONS:
     Description: Add stock to cart
     Call Format:
       {
-      "action": "tool",
-      "tool_name": "add_to_cart",
-      "arguments": {
+      "action": "method_call",
+      "tool": "add_to_cart",
+      "args": {
             "symbol": "<symbol>",
             "quantity": 0
       }
@@ -371,7 +372,7 @@ YOU MAY CHOOSE THE FOLLOWING ACTIONS:
 
 2. STAGE CALLS (Transitions):
   Transition to: portfolio
-    {"action": "transition", "target_stage": "portfolio"}
+    {"action": "stage_transition", "stage": "portfolio"}
 
 
 ================================================================================"""
@@ -419,9 +420,9 @@ YOU MAY CHOOSE THE FOLLOWING ACTIONS:
     Description: Search for stock
     Call Format:
       {
-      "action": "tool",
-      "tool_name": "search",
-      "arguments": {
+      "action": "method_call",
+      "tool": "search",
+      "args": {
             "symbol": "<symbol>"
       }
 }
@@ -430,9 +431,9 @@ YOU MAY CHOOSE THE FOLLOWING ACTIONS:
     Description: Add stock to cart
     Call Format:
       {
-      "action": "tool",
-      "tool_name": "add_to_cart",
-      "arguments": {
+      "action": "method_call",
+      "tool": "add_to_cart",
+      "args": {
             "symbol": "<symbol>",
             "quantity": 0
       }
@@ -441,7 +442,7 @@ YOU MAY CHOOSE THE FOLLOWING ACTIONS:
 
 2. STAGE CALLS (Transitions):
   Transition to: portfolio
-    {"action": "transition", "target_stage": "portfolio"}
+    {"action": "stage_transition", "stage": "portfolio"}
 
 
 ================================================================================"""

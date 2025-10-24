@@ -10,6 +10,7 @@ from concierge.core.workflow import Workflow
 from concierge.core.actions import Action, MethodCallAction, StageTransitionAction
 from concierge.core.results import Result, ToolResult, TransitionResult, ErrorResult, StateInputRequiredResult
 from concierge.presentations import ComprehensivePresentation
+from concierge.external.contracts import ACTION_METHOD_CALL, ACTION_STAGE_TRANSITION
 
 
 @dataclass
@@ -43,7 +44,7 @@ class Orchestrator:
         
         if result["type"] == "tool_result":
             self.history.append({
-                "action": "method_call",
+                "action": ACTION_METHOD_CALL,
                 "tool": action.tool_name,
                 "args": action.args,
                 "result": result["result"]
@@ -89,7 +90,7 @@ class Orchestrator:
         self.pending_transition = None
         
         self.history.append({
-            "action": "stage_transition",
+            "action": ACTION_STAGE_TRANSITION,
             "from": stage.name,
             "to": action.target_stage
         })

@@ -3,6 +3,7 @@ State Input Required Message - prompts user for missing state fields.
 """
 from concierge.communications.base import Communications
 from concierge.core.results import StateInputRequiredResult
+from concierge.external.contracts import ACTION_STATE_INPUT
 
 
 class StateInputRequiredMessage(Communications):
@@ -14,7 +15,7 @@ class StateInputRequiredMessage(Communications):
             result.message,
             "",
             "Please provide the values in the following format:",
-            '{"action": "state_input", "data": {',
+            f'{{"action": "{ACTION_STATE_INPUT}", "data": {{',
         ]
         
         field_examples = []
