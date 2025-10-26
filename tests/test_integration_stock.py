@@ -84,7 +84,7 @@ CURRENT STATE:
 
 YOU MAY CHOOSE THE FOLLOWING ACTIONS:
 
-1. ACTION CALLS (Tools):
+1. ACTION CALLS (Tasks):
   Task: search
     Description: Search for stock
     Call Format:
@@ -164,7 +164,7 @@ CURRENT STATE:
 
 YOU MAY CHOOSE THE FOLLOWING ACTIONS:
 
-1. ACTION CALLS (Tools):
+1. ACTION CALLS (Tasks):
   Task: search
     Description: Search for stock
     Call Format:
@@ -240,7 +240,7 @@ CURRENT STATE:
 
 YOU MAY CHOOSE THE FOLLOWING ACTIONS:
 
-1. ACTION CALLS (Tools):
+1. ACTION CALLS (Tasks):
   Task: view_holdings
     Description: View current holdings
     Call Format:
@@ -345,7 +345,7 @@ CURRENT STATE:
 
 YOU MAY CHOOSE THE FOLLOWING ACTIONS:
 
-1. ACTION CALLS (Tools):
+1. ACTION CALLS (Tasks):
   Task: search
     Description: Search for stock
     Call Format:
@@ -415,7 +415,7 @@ CURRENT STATE:
 
 YOU MAY CHOOSE THE FOLLOWING ACTIONS:
 
-1. ACTION CALLS (Tools):
+1. ACTION CALLS (Tasks):
   Task: search
     Description: Search for stock
     Call Format:

@@ -1,18 +1,18 @@
 """External contracts - formal JSON schemas for Concierge API"""
 from concierge.external.contracts import (
-    ToolCall,
+    TaskCall,
     StageTransition,
     TerminateSession,
-    TOOL_CALL_EXAMPLE,
+    TASK_CALL_EXAMPLE,
     STAGE_TRANSITION_EXAMPLE,
     TERMINATE_SESSION_EXAMPLE
 )
 
 __all__ = [
-    "ToolCall",
+    "TaskCall",
     "StageTransition",
     "TerminateSession",
-    "TOOL_CALL_EXAMPLE",
+    "TASK_CALL_EXAMPLE",
     "STAGE_TRANSITION_EXAMPLE",
     "TERMINATE_SESSION_EXAMPLE"
 ]

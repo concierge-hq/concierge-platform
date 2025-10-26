@@ -52,12 +52,12 @@ class Orchestrator:
             return TaskResult(
                 task_name=action.task_name,
                 result=result["result"],
-                presentation_type=BriefPresentation
+                presentation_type=ComprehensivePresentation
             )
         else:
             return ErrorResult(
                 message=result.get("message", result.get("error", "Unknown error")),
-                presentation_type=BriefPresentation
+                presentation_type=ComprehensivePresentation
             )
     
     async def execute_stage_transition(self, action: StageTransitionAction) -> Result:
@@ -77,13 +77,13 @@ class Orchestrator:
                     target_stage=action.target_stage,
                     message=f"To transition to '{action.target_stage}', please provide: {validation['missing']}",
                     required_fields=validation["missing"],
-                    presentation_type=BriefPresentation
+                    presentation_type=ComprehensivePresentation
                 )
             else:
                 return ErrorResult(
                     message=validation["error"],
                     allowed=validation.get("allowed"),
-                    presentation_type=BriefPresentation
+                    presentation_type=ComprehensivePresentation
                 )
         
         target = self.workflow.transition_to(action.target_stage)
@@ -98,7 +98,7 @@ class Orchestrator:
         return TransitionResult(
             from_stage=stage.name,
             to_stage=action.target_stage,
-            presentation_type=BriefPresentation
+            presentation_type=ComprehensivePresentation
         )
     
     def populate_state(self, state_data: dict) -> None:
