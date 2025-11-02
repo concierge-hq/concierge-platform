@@ -60,6 +60,12 @@ items = state.get("cart.items", [])
 user_email = state.get("user.email")
 ```
 
+<br>
+<p align="center">
+  <img src="assets/concierge_example.svg" alt="Concierge Example" width="100%"/>
+</p>
+<br>
+
 ### 🔧 **Workflow**
 A workflow is a logic grouping of several stages, you can define graphs of stages which represent legal moves to other stages within workflow.
 ```python
