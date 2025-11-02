@@ -167,7 +167,7 @@ class CheckoutStage:
         """Processes payment and creates order"""
 ```
 
-## Use Cases
+## Examples (please refer to examples folder): 
 
 - **E-commerce**: Amazon-style shopping with browse, cart, and checkout workflows
 - **Real Estate**: Zillow property search, filter, schedule viewings, and applications
