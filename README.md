@@ -96,7 +96,7 @@ pip install -e .
 ./scripts/run-server.sh
 
 # Test with example workflow (in another terminal)
-python examples/shopping/workflow.py
+python examples/ecommerce/workflow.py
 ```
 
 ## Examples
@@ -167,14 +167,13 @@ class CheckoutStage:
         """Processes payment and creates order"""
 ```
 
-## Examples (please refer to examples folder): 
+## Examples (examples folder): 
 
-- **E-commerce**: Amazon-style shopping with browse, cart, and checkout workflows
-- **Real Estate**: Zillow property search, filter, schedule viewings, and applications
-- **Ride Sharing**: Uber ride booking with location, vehicle selection, and payment
-- **Food Delivery**: DoorDash ordering with restaurant browse, menu selection, and delivery tracking
-- **Travel Booking**: Expedia flights and hotels with multi-stage search and booking
-- **Financial Services**: Payment workflows with compliance checks and audit trails
+- **E-commerce**: Online shopping with browse, cart, and checkout workflows
+- **Ride Sharing**: Ride booking with location, vehicle selection, and tracking
+- **Food Delivery**: Restaurant ordering with menu selection and delivery tracking
+- **Travel Booking**: Flights and hotels with multi-stage search and booking
+- **Payment**: Payment workflows with verification and compliance checks
 
 ---
 
