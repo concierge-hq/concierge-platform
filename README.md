@@ -36,16 +36,6 @@ Developers define workflows with explicit rules and prerequisites. You control a
 </p>
 <br>
 
-**Dashboard**
-<br>
-<p align="center">
-  <img src="assets/Concierge WF.png" alt="Concierge Workflow" width="100%"/>
-  <br/>  
-</p>
-<br>
-
-
-
 ### **Tasks**
 Tasks are the smallest granularity of callable business logic. Several tasks can be defined within 1 stage. Ensuring these tasks are avialable or callable at the stage. 
 ```python
@@ -105,6 +95,15 @@ class ShoppingWorkflow:
         checkout: []
     }
 ```
+
+**Dashboard**
+<br>
+<p align="center">
+  <img src="assets/Concierge WF.png" alt="Concierge Workflow" width="100%"/>
+  <br/>  
+</p>
+<br>
+
 
 ## Examples
 
