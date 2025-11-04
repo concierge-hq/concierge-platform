@@ -13,6 +13,19 @@
 
 Concierge is a declerative framework that allows LLMs to interact with your applications, and navigate through complex service heirarchies. With Concierge, you can built applications for AI/LLM use exposed over the web to guide agents towards domain specific goals. (Example: Agents browsing, selecting, transcating for online shopping interface).
 
+## Quick Start
+
+```bash
+# Install dependencies
+pip install -e .
+
+# Run server
+./scripts/run-server.sh
+
+# Test with example workflow (in another terminal)
+python examples/ecommerce/workflow.py
+```
+
 ## Core Concepts
 
 Developers define workflows with explicit rules and prerequisites. You control agent autonomy by specifying legal tasks at each stage and valid transitions between stages. For example: agents cannot checkout before adding items to cart. Concierge enforces these rules, validates prerequisites before task execution, and ensures agents follow your defined path through the application.
@@ -91,19 +104,6 @@ class ShoppingWorkflow:
         cart: [checkout, selection, discovery],
         checkout: []
     }
-```
-
-## Quick Start
-
-```bash
-# Install dependencies
-pip install -e .
-
-# Run server
-./scripts/run-server.sh
-
-# Test with example workflow (in another terminal)
-python examples/ecommerce/workflow.py
 ```
 
 ## Examples
