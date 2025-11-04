@@ -11,7 +11,7 @@
 **Expose your service to Agents**
 <br>
 
-Concierge is a declerative framework that allows LLMs to interact with your applications, and navigate through complex service heirarchies. Concierge provides a rich context to guide agents towards domain specific goals. (Example: Agents browsing, selecting, transcating for online shopping interface).
+Concierge is a declerative framework that allows LLMs to interact with your applications, and navigate through complex service heirarchies. With Concierge, you can built applications for AI/LLM use exposed over the web to guide agents towards domain specific goals. (Example: Agents browsing, selecting, transcating for online shopping interface).
 
 ## Core Concepts
 
