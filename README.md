@@ -13,7 +13,7 @@
 
 Concierge is a declerative framework that allows LLMs to interact with your applications, and navigate through complex service heirarchies. With Concierge, you can built applications for AI/LLM use exposed over the web to guide agents towards domain specific goals. (Example: Agents browsing, selecting, transcating for online shopping interface).
 
-<h2 id="updates">🔄 Updates</h2>
+<h2 id="updates">🚀 Updates</h2>
 
  - **Nov 16, 2024**: Concierge x <a href="https://www.useblock.tech/">Block</a> unite. Concierge now powers applications to allow you to chat with an agent to book salon appointments.
  - **Nov 10, 2024**: Concierge x <a href="https://topfunnel.io/">Funnel</a> unite. Concierge powers your AI Staff Member That Never Sleeps.
