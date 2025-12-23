@@ -1,3 +1,4 @@
+# Concierge V0.2
 """Concierge CLI"""
 import click
 import sys

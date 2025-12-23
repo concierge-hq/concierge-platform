@@ -1,3 +1,4 @@
+# Concierge V0.2
 """Concierge: Declarative LLM workflow framework."""
 
 from concierge.core.state import State
