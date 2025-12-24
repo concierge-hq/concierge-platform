@@ -72,9 +72,10 @@ def show_chart(data: str):
     """Display a chart widget."""
     return {"data": data}
 ```
+Concierge OpenMCP provides it's own abstractions like `widgets` and OpenAI emulator that emulates the `window.openai` in the inspector enabling app creation in seconds.
 </details>
 
-### 2. MCP
+### 2. MCP Servers
 
 ```bash
 # Install MCP Core
