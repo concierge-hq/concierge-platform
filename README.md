@@ -88,14 +88,14 @@ openmcp deploy
 ```
 
 <details>
-<summary><b>📝 Example: Convert your existing MCPs to OpenMCP </b></summary>
+<summary><b> Example: Convert your existing MCPs to OpenMCP </b></summary>
 
 ```python
 from mcp.server.fastmcp import FastMCP
 from openmcp import OpenMCP
 
-# Replace FastMCP with OpenMCP
-mcp = OpenMCP(FastMCP("my-server"))  # Drop-in replacement
+# Enable OpenMCP on FastMCP
+mcp = OpenMCP(FastMCP("my-server"))  # 1 line replacement
 
 @mcp.tool()
 def get_user(user_id: int):
