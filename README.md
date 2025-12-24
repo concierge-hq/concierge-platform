@@ -127,9 +127,14 @@ from openmcp import OpenMCP, Config, ProviderType
 mcp = OpenMCP("my-app", config=Config(provider_type=ProviderType.SEARCH))
 
 @mcp.tool()
-def search_users(query: str):
-    """Search for users."""
-    return {"users": [{"name": "John"}]}
+def add(a: int, b: int):
+    """Add two numbers together."""
+    return a + b
+
+@mcp.tool()
+def subtract(a: int, b: int):
+    """Subtract b from a."""
+    return a - b
 
 # Automatically adds search_tools and call_tool!
 ```
