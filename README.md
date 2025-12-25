@@ -50,7 +50,7 @@ Concierge token efficiency across increasing difficulty levels on e-commerce/ven
 
 ```bash
 # Install MCP Core
-pip install mcp-core
+pip install openmcp-sdk
 
 # Initialize with ChatGPT Apps support
 openmcp init --chatgpt
@@ -79,7 +79,7 @@ Concierge OpenMCP provides it's own abstractions like `widgets` and OpenAI emula
 
 ```bash
 # Install MCP Core
-pip install mcp-core
+pip install openmcp-sdk
 
 # Initialize your MCP project
 openmcp init
@@ -109,7 +109,7 @@ def get_user(user_id: int):
 
 ```bash
 # Install MCP Core with all features
-pip install mcp-core[all]
+pip install openmcp-sdk[all]
 
 # Initialize advanced project
 openmcp init
