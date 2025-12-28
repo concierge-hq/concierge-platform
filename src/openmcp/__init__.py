@@ -1,3 +1,5 @@
+import os
+import subprocess
 from enum import Enum
 from functools import wraps
 from pathlib import Path
@@ -5,9 +7,8 @@ from typing import Any, Callable, List
 
 import mcp.types as types
 from mcp.server.fastmcp import FastMCP
-from openmcp.backends.search_backend import SearchBackend
 from openmcp.backends.vanilla_backend import VanillaBackend
-from openmcp.core.widget import Widget
+from openmcp.core.widget import Widget, WidgetMode
 
 
 class ProviderType(Enum):
@@ -15,10 +16,12 @@ class ProviderType(Enum):
     SEARCH = "search"
 
 
-PROVIDER_REGISTRY = {
-    ProviderType.PLAIN: VanillaBackend,
-    ProviderType.SEARCH: SearchBackend,
-}
+def _get_provider_class(provider_type: ProviderType):
+    """Lazy load provider to avoid importing optional dependencies."""
+    if provider_type == ProviderType.SEARCH:
+        from openmcp.backends.search_backend import SearchBackend
+        return SearchBackend
+    return VanillaBackend
 
 
 class Config:
@@ -28,9 +31,17 @@ class Config:
         self.model = model
 
 
+# Template for Mode 2 (URL → iframe wrapper)
+IFRAME_TEMPLATE = '''<!DOCTYPE html>
+<html>
+<head><style>*{margin:0;padding:0}iframe{width:100%;height:100vh;border:none}</style></head>
+<body><iframe src="{url}"></iframe></body>
+</html>'''
+
+
 class OpenMCP:
 
-    def __init__(self, server, *, config=Config(), **fastmcp_kwargs):
+    def __init__(self, server, *, config=Config(), assets_dir: str | None = None, **fastmcp_kwargs):
         if isinstance(server, FastMCP):
             self._server = server
         else:
@@ -38,8 +49,9 @@ class OpenMCP:
         self._config = config
         self._widgets: List[Widget] = []
         self._pending_resources: List[types.Resource] = []
+        self._assets_dir = Path(assets_dir) if assets_dir else Path.cwd() / "assets"
 
-        provider_cls = PROVIDER_REGISTRY[config.provider_type]
+        provider_cls = _get_provider_class(config.provider_type)
         self._provider = provider_cls()
         self._provider.initialize(config)
 
@@ -61,8 +73,30 @@ class OpenMCP:
 
         self._server._mcp_server.list_resources()(_list_all_resources)
 
+    def _get_widget_html(self, widget: Widget) -> str:
+        """Get HTML content for a widget based on its mode."""
+        mode = widget.mode
+        
+        if mode == WidgetMode.HTML:
+            return widget.html
+        
+        if mode == WidgetMode.URL:
+            return IFRAME_TEMPLATE.format(url=widget.url)
+        
+        if mode == WidgetMode.ENTRYPOINT:
+            dist_path = self._assets_dir / "dist" / widget.dist_file
+            if not dist_path.exists():
+                raise FileNotFoundError(
+                    f"Widget {widget.name}: dist/{widget.dist_file} not found. "
+                    f"Run 'npm run build' in {self._assets_dir}"
+                )
+            return dist_path.read_text()
+        
+        raise ValueError(f"Unknown widget mode: {mode}")
+
     def _setup_read_resource_handler(self) -> None:
         widgets_by_uri = {w.uri: w for w in self._widgets}
+        get_html = self._get_widget_html
 
         original_handler = self._server._mcp_server.request_handlers.get(
             types.ReadResourceRequest
@@ -75,13 +109,7 @@ class OpenMCP:
             widget = widgets_by_uri.get(uri_str)
 
             if widget:
-                if widget.html:
-                    text = widget.html
-                elif widget.html_file:
-                    text = Path(widget.html_file).read_text()
-                else:
-                    raise ValueError(f"Widget {widget.name}: no html content")
-
+                text = get_html(widget)
                 contents = [
                     types.TextResourceContents(
                         uri=widget.uri,
@@ -101,20 +129,53 @@ class OpenMCP:
             types.ReadResourceRequest
         ] = _read_resource_with_meta
 
+    def _run_widget_builds(self):
+        """Auto-run npm build if any widget uses entrypoint mode."""
+        needs_build = any(w.mode == WidgetMode.ENTRYPOINT for w in self._widgets)
+        if not needs_build:
+            return
+        
+        package_json = self._assets_dir / "package.json"
+        if not package_json.exists():
+            raise FileNotFoundError(
+                f"{self._assets_dir}/package.json not found. "
+                f"Widgets using entrypoint mode require a build system."
+            )
+        
+        print("Installing web dependencies...", flush=True)
+        result = subprocess.run(
+            ["npm", "install"],
+            cwd=str(self._assets_dir),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"npm install failed:\n{result.stderr}")
+        
+        print("Building widgets...", flush=True)
+        result = subprocess.run(
+            ["npm", "run", "build"],
+            cwd=str(self._assets_dir),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"Build failed:\n{result.stdout}\n{result.stderr}")
+        print("Build complete", flush=True)
+
     def _finalize(self):
         """Setup all handlers. Called before run() or streamable_http_app()."""
         if getattr(self, "_finalized", False):
             return
         self._finalized = True
 
+        self._run_widget_builds()
+
         tools = self._server._tool_manager.list_tools()
         self._provider.index_tools(tools)
 
-        replacement_tools = self._provider.serve_tools()
-        if replacement_tools is not None:
-            self._server._tool_manager._tools.clear()
-            for tool_fn in replacement_tools:
-                self._server.tool()(tool_fn)
+        served_tools = self._provider.serve_tools()
+        self._server._tool_manager._tools = {t.name: t for t in served_tools}
 
         self._setup_resource_handler()
         self._setup_read_resource_handler()
@@ -123,15 +184,29 @@ class OpenMCP:
         self._finalize()
         return self._server.run(*args, **kwargs)
 
-    def streamable_http_app(self, *args, **kwargs):
+    def streamable_http_app(self):
         self._finalize()
-        return self._server.streamable_http_app(*args, **kwargs)
+        app = self._server.streamable_http_app()
+        
+        # from starlette.middleware.cors import CORSMiddleware
+        # app.add_middleware(
+        #     CORSMiddleware,
+        #     allow_origins=["*"],
+        #     allow_methods=["*"],
+        #     allow_headers=["*"],
+        # )
+        return app
 
     def widget(
         self,
         uri: str,
+        # Mode 1: Inline HTML
         html: str | None = None,
-        html_file: str | None = None,
+        # Mode 2: External URL  
+        url: str | None = None,
+        # Mode 3: Entrypoint (filename in entrypoints/)
+        entrypoint: str | None = None,
+        # Metadata
         name: str | None = None,
         title: str | None = None,
         description: str | None = None,
@@ -142,12 +217,13 @@ class OpenMCP:
 
         def decorator(fn: Callable) -> Callable:
             w = Widget(
+                uri=uri,
                 html=html,
-                html_file=html_file,
+                url=url,
+                entrypoint=entrypoint,
                 name=name or fn.__name__,
                 title=title,
                 description=description or fn.__doc__,
-                uri=uri,
                 invoking=invoking,
                 invoked=invoked,
                 annotations=annotations,

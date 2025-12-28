@@ -4,16 +4,89 @@ import os
 import sys
 import json
 import time
+import shutil
 from pathlib import Path
 
-API = os.getenv("OPENMCP_API", "https://api.openmcp-free.app")
+API = os.getenv("OPENMCP_API", "https://getconcierge.app")
 CREDS = Path.home() / ".openmcp" / "credentials.json"
+VERSION = "0.2.15"
+
+# Basic MCP template (non-chatgpt)
+TEMPLATE_MAIN = '''import os
+from pydantic import Field
+from openmcp import OpenMCP
+
+mcp = OpenMCP("{name}", stateless_http=True)
+
+
+@mcp.tool()
+def add(
+    a: float = Field(description="The first number to add"),
+    b: float = Field(description="The second number to add"),
+) -> float:
+    """Add two numbers together."""
+    return a + b
+
+
+@mcp.tool()
+def subtract(
+    a: float = Field(description="The number to subtract from"),
+    b: float = Field(description="The number to subtract"),
+) -> float:
+    """Subtract one number from another."""
+    return a - b
+
+
+app = mcp.streamable_http_app()
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    print(f"Starting server on 0.0.0.0:{{port}}", flush=True)
+    uvicorn.run(app, host="0.0.0.0", port=port)
+'''
+
+TEMPLATE_README = '''# {name}
+
+MCP server with calculator tools.
+
+## Run locally
+
+```bash
+pip install -r requirements.txt
+python main.py
+```
+
+## Deploy
+
+```bash
+openmcp deploy
+```
+'''
+
+TEMPLATE_REQUIREMENTS = '''openmcp-sdk
+uvicorn
+starlette
+'''
 
 # Colors
 def dim(s): return f"\033[2m{s}\033[0m"
 def green(s): return f"\033[32m{s}\033[0m"
 def cyan(s): return f"\033[36m{s}\033[0m"
 def bold(s): return f"\033[1m{s}\033[0m"
+
+
+def generate_project_id(name):
+    """Generate unique project ID: name + random suffix"""
+    import random
+    import string
+    suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+    clean_name = name.lower().replace("_", "-").replace(" ", "-")[:20]
+    return f"{clean_name}-{suffix}"
+
+
+def get_settings_json(project_id):
+    return json.dumps({"command": "python main.py", "project_id": project_id})
 
 
 def load_credentials():
@@ -27,16 +100,10 @@ def save_credentials(creds):
     CREDS.write_text(json.dumps(creds, indent=2))
 
 
-def spinner(duration=0.5):
-    """Simple spinner animation"""
-    frames = ["◐", "◓", "◑", "◒"]
-    end = time.time() + duration
-    i = 0
-    while time.time() < end:
-        print(f"\r  {frames[i % 4]}", end="", flush=True)
-        time.sleep(0.1)
-        i += 1
-    print("\r  ", end="", flush=True)
+def get_templates_dir():
+    """Get path to bundled templates directory"""
+    import importlib.resources
+    return importlib.resources.files("openmcp") / "templates"
 
 
 def login():
@@ -51,12 +118,12 @@ def login():
         return creds["api_key"]
 
     session = token_urlsafe(16)
-    url = f"{API}/login?session={session}"
+    url = f"{API}/login?session={session}&mode=cli"
     
     print(f"\n  {bold('☁  OpenMCP')}\n")
     print(f"  Opening browser to authenticate...\n")
     
-    webbrowser.open(url)
+    # webbrowser.open(url)  # Temporarily disabled for local testing
     print(f"  {dim('If browser does not open, visit:')}")
     print(f"  {dim(url)}\n")
     
@@ -81,13 +148,39 @@ def login():
     sys.exit(1)
 
 
-def deploy(project_path=".", project_id=None):
+def logout(quiet=False):
+    """Clear stored credentials"""
+    if CREDS.exists():
+        CREDS.unlink()
+    if not quiet:
+        print(f"\n  {green('✓')} Logged out\n")
+
+
+def deploy(project_path="."):
     """Deploy an MCP server"""
     import tarfile
     import tempfile
     import httpx
     
     start_total = time.time()
+    path = Path(project_path).resolve()
+    
+    # settings.json is required
+    settings_file = path / "settings.json"
+    if not settings_file.exists():
+        print(f"\n  {dim('Error:')} settings.json not found")
+        print(f"  {dim('Run:')} openmcp init\n")
+        sys.exit(1)
+    
+    try:
+        settings = json.loads(settings_file.read_text())
+        project_id = settings.get("project_id")
+        if not project_id:
+            print(f"\n  {dim('Error:')} project_id missing in settings.json\n")
+            sys.exit(1)
+    except json.JSONDecodeError:
+        print(f"\n  {dim('Error:')} Invalid settings.json\n")
+        sys.exit(1)
     
     creds = load_credentials()
     if not creds or not creds.get("api_key"):
@@ -95,31 +188,33 @@ def deploy(project_path=".", project_id=None):
     else:
         api_key = creds["api_key"]
     
-    path = Path(project_path).resolve()
-    
-    if not project_id:
-        project_id = path.name.lower().replace("_", "-").replace(" ", "-")
-    
     print(f"\n  {bold('☁  Deploying')} {cyan(project_id)}\n")
     
-    # Package
+    # Package (exclude node_modules, dist, venv, etc)
     start_pack = time.time()
     print(f"  Packaging...", end="", flush=True)
+    
+    skip = {"__pycache__", "node_modules", "dist", ".venv", "venv", ".git"}
+    
+    def add_filtered(tar, item, arcname):
+        if item.name.startswith(".") or item.name in skip:
+            return
+        if item.is_file():
+            tar.add(item, arcname=arcname)
+        elif item.is_dir():
+            for sub in item.iterdir():
+                add_filtered(tar, sub, f"{arcname}/{sub.name}")
     
     with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tmp:
         with tarfile.open(tmp.name, "w:gz") as tar:
             for item in path.iterdir():
-                if item.name.startswith(".") or item.name in ("__pycache__", "node_modules", ".venv", "venv"):
-                    continue
-                tar.add(item, arcname=item.name)
+                add_filtered(tar, item, item.name)
         tmp_path = tmp.name
     
     size = os.path.getsize(tmp_path) / 1024
-    pack_time = time.time() - start_pack
-    print(f"\r  Packaged {dim(f'{size:.1f}KB')} {dim(f'({pack_time:.1f}s)')} {green('✓')}")
+    print(f"\r  Packaged {dim(f'{size:.1f}KB')} {green('✓')}")
     
     # Upload
-    start_upload = time.time()
     print(f"  Uploading...", end="", flush=True)
     
     try:
@@ -134,17 +229,17 @@ def deploy(project_path=".", project_id=None):
         os.unlink(tmp_path)
         
         if r.status_code == 401:
-            print(f"\r  {dim('○')} Session expired. Run: {cyan('openmcp login')}\n")
-            sys.exit(1)
+            print(f"\r  {dim('○')} Session expired, re-authenticating...\n")
+            logout(quiet=True)
+            api_key = login()
+            return deploy(project_path)
         
         if r.status_code != 200:
             print(f"\r  {dim('○')} Error: {r.text}\n")
             sys.exit(1)
         
-        upload_time = time.time() - start_upload
-        print(f"\r  Uploaded {dim(f'({upload_time:.1f}s)')} {green('✓')}         ")
+        print(f"\r  Uploaded {green('✓')}              ")
         
-        # Success
         data = r.json()
         total_time = time.time() - start_total
         
@@ -156,44 +251,29 @@ def deploy(project_path=".", project_id=None):
     except KeyboardInterrupt:
         print(f"\n\n  {dim('Cancelled')}\n")
         sys.exit(0)
-    except httpx.TimeoutException:
-        print(f"\r  {dim('○')} Timeout. Try again.\n")
-        sys.exit(1)
     except Exception as e:
         print(f"\r  {dim('○')} Error: {e}\n")
         sys.exit(1)
 
 
 def stream_logs(project_id: str, api_key: str, url: str):
-    """Stream logs from deployed project in a 4-line scrolling window"""
+    """Stream logs from deployed project"""
     import httpx
     
-    # Gradient styles: oldest → newest (faded → bright)
-    def fade0(s): return f"\033[38;5;239m{s}\033[0m"
-    def fade1(s): return f"\033[38;5;244m{s}\033[0m"
-    def fade2(s): return f"\033[38;5;250m{s}\033[0m"
-    def fade3(s): return f"\033[38;5;255m{s}\033[0m"
-    fades = [fade0, fade1, fade2, fade3]
+    fade = [
+        lambda s: f"\033[38;5;239m{s}\033[0m",
+        lambda s: f"\033[38;5;244m{s}\033[0m",
+        lambda s: f"\033[38;5;250m{s}\033[0m",
+        lambda s: f"\033[38;5;255m{s}\033[0m",
+    ]
     
-    print(f"  {dim('╶───')}")
-    print()
-    print()
-    print()
-    print()
-    sys.stdout.flush()
-    
+    print(f"  {dim('╶───')}\n\n\n\n")
     lines = ["", "", "", ""]
-    pulse = 0
-    start_time = time.time()
-    log_count = 0
     
     try:
-        with httpx.stream(
-            "GET",
-            f"{API}/logs/{project_id}",
-            headers={"Authorization": f"Bearer {api_key}"},
-            timeout=None
-        ) as r:
+        with httpx.stream("GET", f"{API}/logs/{project_id}",
+                         headers={"Authorization": f"Bearer {api_key}"},
+                         timeout=httpx.Timeout(connect=30, read=300, write=30, pool=30)) as r:
             if r.status_code != 200:
                 print(f"\033[4A\033[2K  {dim('Could not connect')}")
                 return
@@ -205,45 +285,47 @@ def stream_logs(project_id: str, api_key: str, url: str):
                     line, buffer = buffer.split("\n", 1)
                     if line.strip():
                         lines = lines[1:] + [line[:72]]
-                        pulse = (pulse + 1) % 4
-                        log_count += 1
-                        indicators = ["◜", "◝", "◞", "◟"]
-                        
                         print(f"\033[4A", end="")
                         for i, l in enumerate(lines):
-                            prefix = indicators[pulse] if i == 3 else " "
-                            styled = fades[i](l) if l else ""
-                            print(f"\033[2K  {dim(prefix)} {styled}")
-                        sys.stdout.flush()
+                            print(f"\033[2K  {fade[i](l) if l else ''}")
     except KeyboardInterrupt:
-        elapsed = int(time.time() - start_time)
-        import random
-        farewells = [
-            "Ship it! 🚀", 
-            "You're live. Now make history. ✨",
-            "Go break the internet. 🔥",
-            "You just leveled up. 🎮",
-            "You shipped. The world noticed. 🌍",
-            "That was fast. You're faster. ⚡",
-            "You built this. Now watch it fly. 🚀",
-            "You're unstoppable. Keep going. 💫",
-            "Your code is live. Own it. 💪",
-            "You did that. Legend. ✨",
-        ]
-        msg = random.choice(farewells)
-        print(f"\033[4A", end="")  
-        print(f"\033[J", end="")   
-        print(f"  {dim(f'{log_count} logs · {elapsed}s')}")
-        print(f"  {msg}\n")
-    except Exception:
-        pass
+        print(f"\033[4A\033[J  {dim('Done')}\n")
+    except httpx.RemoteProtocolError:
+        print(f"\033[4A\033[J  {dim('Connection closed (build may still be running)')}\n")
+        print(f"  {dim('Check status:')} curl {url}\n")
 
 
-def logout():
-    """Clear stored credentials"""
-    if CREDS.exists():
-        CREDS.unlink()
-    print(f"\n  {green('✓')} Logged out\n")
+def init(name="openmcp-app", chatgpt=False):
+    """Scaffold a new MCP server project"""
+    project_dir = Path.cwd() / name
+    
+    if project_dir.exists():
+        print(f"\n  {dim('Error:')} Directory {bold(name)} already exists\n")
+        sys.exit(1)
+    
+    project_id = generate_project_id(name)
+    
+    print(f"\nOpenMCP CLI {VERSION}")
+    print(f"Scaffolding project {green('✓')}")
+    
+    if chatgpt:
+        # Copy entire chatgpt template
+        templates_dir = get_templates_dir()
+        chatgpt_template = templates_dir / "chatgpt"
+        shutil.copytree(chatgpt_template, project_dir)
+    else:
+        # Basic MCP server
+        project_dir.mkdir()
+        (project_dir / "main.py").write_text(TEMPLATE_MAIN.format(name=name))
+        (project_dir / "README.md").write_text(TEMPLATE_README.format(name=name))
+        (project_dir / "requirements.txt").write_text(TEMPLATE_REQUIREMENTS)
+    
+    # Always write settings.json with unique project_id
+    (project_dir / "settings.json").write_text(get_settings_json(project_id))
+    
+    print(f"> Success! Created {bold(name)}")
+    print(f"\n  {dim('$')} cd {name}")
+    print(f"  {dim('$')} openmcp deploy\n")
 
 
 def main():
@@ -254,35 +336,36 @@ def main():
   {bold('☁  OpenMCP')} {dim('— Deploy MCP servers in seconds')}
 
   {bold('Commands')}
+    {cyan('init')} [name]              Create a new MCP server project
+    {cyan('init')} --chatgpt [name]    Create a ChatGPT widget app
+    {cyan('deploy')} [path]             Deploy project
+    {cyan('deploy')} --logs [path]      Deploy and stream logs
     {cyan('login')}                    Authenticate with OpenMCP
-    {cyan('deploy')} [path] [id]        Deploy current directory
-    {cyan('deploy')} --logs [path] [id] Deploy and stream logs
     {cyan('logout')}                   Clear stored credentials
 
-  {bold('Examples')}
+  {bold('Quick Start')}
+    openmcp init
+    cd openmcp-app
     openmcp deploy
-    openmcp deploy --logs
-    openmcp deploy ./my-mcp custom-name
 """)
         return
     
     cmd = args[0]
     
-    if cmd == "login":
+    if cmd == "init":
+        chatgpt = "--chatgpt" in args
+        remaining = [a for a in args[1:] if not a.startswith("--")]
+        name = remaining[0] if remaining else "openmcp-app"
+        init(name, chatgpt=chatgpt)
+    elif cmd == "login":
         login()
     elif cmd == "deploy":
-        # Parse --logs flag
         show_logs = "--logs" in args
         remaining = [a for a in args[1:] if a != "--logs"]
-        
-        path = remaining[0] if len(remaining) > 0 else "."
-        project_id = remaining[1] if len(remaining) > 1 else None
-        
-        result = deploy(path, project_id)
-        
+        path = remaining[0] if remaining else "."
+        result = deploy(path)
         if show_logs and result:
-            proj_id, api_key, url = result
-            stream_logs(proj_id, api_key, url)
+            stream_logs(*result)
     elif cmd == "logout":
         logout()
     else:

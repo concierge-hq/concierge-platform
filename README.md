@@ -72,6 +72,7 @@ def show_chart(data: str):
     """Display a chart widget."""
     return {"data": data}
 ```
+
 Concierge OpenMCP provides it's own abstractions like `widgets` and OpenAI emulator that emulates the `window.openai` in the inspector enabling app creation in seconds.
 </details>
 
@@ -102,7 +103,12 @@ mcp = OpenMCP(FastMCP("my-server"))  # 1 line replacement
 def get_user(user_id: int):
     """Get user by ID."""
     return {"id": user_id, "name": "John"}
+
+if __name__ == "__main__":
+    mcp.run()
 ```
+
+Your existing FastMCP tools work unchanged. OpenMCP adds widget support, inspector debugging, and ChatGPT Apps compatibility.
 </details>
 
 ### 3. Concierge Multistage Workflows
@@ -119,7 +125,7 @@ openmcp deploy
 ```
 
 <details>
-<summary><b>Example: Enable OpenMCP's Search Backend</b></summary>
+<summary><b>Example: Enable OpenMCP Search Backend</b></summary>
 
 ```python
 from openmcp import OpenMCP, Config, ProviderType

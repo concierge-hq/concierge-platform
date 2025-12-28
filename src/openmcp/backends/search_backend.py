@@ -79,31 +79,73 @@ class SearchBackend(BaseProvider):
         max_k = self._max_results
         tools_ref = self._tools
 
-        async def search_tools(
-            query: Annotated[str, Field(
-                description="Natural language description of what you want to do. Returns relevant tools you can call with call_tool.",
-                examples=["find user by email", "process payment refund", "lookup order status"]
-            )],
-        ):
+        class SyntheticTool:
+            def __init__(self, name, description, parameters, func):
+                self.name = name
+                self.title = name.replace("_", " ")
+                self.description = description
+                self.parameters = parameters
+                self.output_schema = None
+                self.annotations = {}
+                self.meta = {}
+                self.icons = None
+                self._func = func
+
+            async def run(self, arguments):
+                return await self._func(**arguments)
+
+        async def search_tools(query: str):
             results = self._search(query, max_k)
             return [to_mcp_tool(t) for t in results]
 
-        async def call_tool(
-            tool_name: Annotated[str, Field(
-                description="Exact name of the tool to execute, as returned by search_tools.",
-                examples=["search_users", "get_payment_errors"]
-            )],
-            arguments: Annotated[dict, Field(
-                description="Arguments to pass to the tool, matching the inputSchema from search_tools.",
-                examples=[{"query": "john@example.com"}, {"user_id": 123}]
-            )],
-        ):
+        async def call_tool(tool_name: str, arguments: dict):
             tool = next((t for t in tools_ref if t.name == tool_name), None)
             if not tool:
-                return {"error": f"Tool '{tool_name}' not found."}
+                return {"error": f\"Tool '{tool_name}' not found.\"}
             return await tool.run(arguments)
 
-        return [search_tools, call_tool]
+        search_params = {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Natural language description of what you want to do. Returns relevant tools you can call with call_tool.",
+                    "examples": ["find user by email", "process payment refund", "lookup order status"],
+                }
+            },
+            "required": ["query"],
+        }
+
+        call_params = {
+            "type": "object",
+            "properties": {
+                "tool_name": {
+                    "type": "string",
+                    "description": "Exact name of the tool to execute, as returned by search_tools.",
+                    "examples": ["search_users", "get_payment_errors"],
+                },
+                "arguments": {
+                    "type": "object",
+                    "description": "Arguments to pass to the tool, matching the inputSchema from search_tools.",
+                },
+            },
+            "required": ["tool_name", "arguments"],
+        }
+
+        return [
+            SyntheticTool(
+                name="search_tools",
+                description="Semantic search over available tools; returns the best matches.",
+                parameters=search_params,
+                func=search_tools,
+            ),
+            SyntheticTool(
+                name="call_tool",
+                description="Execute a tool returned by search_tools with provided arguments.",
+                parameters=call_params,
+                func=call_tool,
+            ),
+        ]
 
     def _search(self, query: str, top_k: int):
 

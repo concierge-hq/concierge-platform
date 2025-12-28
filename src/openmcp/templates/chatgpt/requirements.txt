@@ -1,0 +1,3 @@
+openmcp-sdk
+uvicorn
+starlette
