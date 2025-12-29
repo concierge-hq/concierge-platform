@@ -123,7 +123,7 @@ def login():
     print(f"\n  {bold('☁  OpenMCP')}\n")
     print(f"  Opening browser to authenticate...\n")
     
-    # webbrowser.open(url)  # Temporarily disabled for local testing
+    webbrowser.open(url)
     print(f"  {dim('If browser does not open, visit:')}")
     print(f"  {dim(url)}\n")
     
@@ -256,7 +256,7 @@ def deploy(project_path="."):
         sys.exit(1)
 
 
-def stream_logs(project_id: str, api_key: str, url: str):
+def stream_logs(project_id: str, api_key: str, url: str = None):
     """Stream logs from deployed project"""
     import httpx
     
@@ -292,7 +292,46 @@ def stream_logs(project_id: str, api_key: str, url: str):
         print(f"\033[4A\033[J  {dim('Done')}\n")
     except httpx.RemoteProtocolError:
         print(f"\033[4A\033[J  {dim('Connection closed (build may still be running)')}\n")
-        print(f"  {dim('Check status:')} curl {url}\n")
+        if url:
+            print(f"  {dim('Check status:')} curl {url}\n")
+
+
+def logs(project_id_arg: str = None):
+    """Stream logs for a project. If no project_id provided, use current directory's settings.json"""
+    
+    # Get project_id
+    if project_id_arg:
+        project_id = project_id_arg
+    else:
+        # Try to read from current directory's settings.json
+        settings_path = Path.cwd() / "settings.json"
+        if not settings_path.exists():
+            print(f"\n  {dim('Error:')} No settings.json in current directory.")
+            print(f"  {dim('Usage:')} openmcp logs <project_id>")
+            print(f"  {dim('   or:')} cd into a project directory\n")
+            sys.exit(1)
+        
+        try:
+            settings = json.loads(settings_path.read_text())
+            project_id = settings.get("project_id")
+            if not project_id:
+                print(f"\n  {dim('Error:')} No project_id in settings.json\n")
+                sys.exit(1)
+        except json.JSONDecodeError:
+            print(f"\n  {dim('Error:')} Invalid settings.json\n")
+            sys.exit(1)
+    
+    # Get credentials
+    creds = load_credentials()
+    if not creds or not creds.get("api_key"):
+        api_key = login()
+    else:
+        api_key = creds["api_key"]
+    
+    print(f"\n  {bold('☁  Streaming logs')} {cyan(project_id)}\n")
+    print(f"  {dim('Press Ctrl+C to stop')}\n")
+    
+    stream_logs(project_id, api_key)
 
 
 def init(name="openmcp-app", chatgpt=False):
@@ -340,6 +379,7 @@ def main():
     {cyan('init')} --chatgpt [name]    Create a ChatGPT widget app
     {cyan('deploy')} [path]             Deploy project
     {cyan('deploy')} --logs [path]      Deploy and stream logs
+    {cyan('logs')} [project_id]        Stream logs (uses current dir if no id)
     {cyan('login')}                    Authenticate with OpenMCP
     {cyan('logout')}                   Clear stored credentials
 
@@ -366,6 +406,9 @@ def main():
         result = deploy(path)
         if show_logs and result:
             stream_logs(*result)
+    elif cmd == "logs":
+        project_id_arg = args[1] if len(args) > 1 else None
+        logs(project_id_arg)
     elif cmd == "logout":
         logout()
     else:
