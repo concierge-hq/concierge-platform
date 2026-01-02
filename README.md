@@ -44,6 +44,8 @@ Concierge is a declarative framework that allows LLMs to interact with your appl
 
 Concierge token efficiency across increasing difficulty levels on e-commerce/vendor bench.
 
+<img width="1512" height="667" alt="image" src="https://github.com/user-attachments/assets/f3e583a3-0350-407c-aa96-bce280fc6db8" />
+
 ## Quick Start
 
 ### 1. ChatGPT Apps
