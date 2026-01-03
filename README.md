@@ -5,7 +5,7 @@
 
 <p align="center">
   <a href="https://getconcierge.app/" target="_blank">
-    <img src="https://img.shields.io/badge/Website-theagenticweb.org-8B5CF6?style=flat&logo=safari&logoColor=white&labelColor=000000" alt="Website"/>
+    <img src="https://img.shields.io/badge/Website-getconcierge.app-8B5CF6?style=flat&logo=safari&logoColor=white&labelColor=000000" alt="Website"/>
   </a>
   &nbsp;
   <a href="https://discord.gg/bfT3VkhF" target="_blank">
