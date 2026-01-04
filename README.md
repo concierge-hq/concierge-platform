@@ -50,16 +50,6 @@ Concierge token efficiency across increasing difficulty levels of tasks.
     width="100%"
   />
 </p>
-<p align="center">
-  <img
-    src="https://github.com/user-attachments/assets/0313e905-9e8b-4370-ba79-cfddd6d0420f"
-    width="49.5%"
-  />
-  <img
-    src="https://github.com/user-attachments/assets/d1aa20fe-5a2c-4daa-b6c2-a7689c021d21"
-    width="49.5%"
-  />
-</p>
 
 
 ## Quick Start
@@ -90,8 +80,8 @@ def show_chart(data: str):
     """Display a chart widget."""
     return {"data": data}
 ```
-
 Concierge OpenMCP provides it's own abstractions like `widgets` and OpenAI emulator that emulates the `window.openai` in the inspector enabling app creation in seconds.
+Use https://getconcierge.app/docs to get started.
 </details>
 
 ### 2. MCP Servers
@@ -126,7 +116,8 @@ if __name__ == "__main__":
     mcp.run()
 ```
 
-Your existing FastMCP tools work unchanged. OpenMCP adds widget support, inspector debugging, and ChatGPT Apps compatibility.
+Your existing MCP tools work unchanged. OpenMCP adds widget support, inspector debugging, and ChatGPT Apps compatibility.
+Use https://getconcierge.app/docs to get started.
 </details>
 
 ### 3. Concierge Multistage Workflows
