@@ -1,5 +1,6 @@
 import os
 import subprocess
+import time
 from enum import Enum
 from functools import wraps
 from pathlib import Path
@@ -9,6 +10,7 @@ import mcp.types as types
 from mcp.server.fastmcp import FastMCP
 from openmcp.backends.vanilla_backend import VanillaBackend
 from openmcp.core.widget import Widget, WidgetMode
+from openmcp.telemetry import metrics, ENABLED as METRICS_ENABLED
 
 
 class ProviderType(Enum):
@@ -91,6 +93,11 @@ class OpenMCP:
                     f"Run 'npm run build' in {self._assets_dir}"
                 )
             return dist_path.read_text()
+        
+        if mode == WidgetMode.DYNAMIC:
+            if not hasattr(widget, '_last_args') or widget._last_args is None:
+                raise ValueError(f"Widget {widget.name}: call the tool first")
+            return widget.html_fn(widget._last_args)
         
         raise ValueError(f"Unknown widget mode: {mode}")
 
@@ -179,13 +186,55 @@ class OpenMCP:
 
         self._setup_resource_handler()
         self._setup_read_resource_handler()
+        self._setup_metrics()
+
+    def _setup_metrics(self):
+        if not METRICS_ENABLED:
+            return
+        handlers = self._server._mcp_server.request_handlers
+
+        if types.CallToolRequest in handlers:
+            original = handlers[types.CallToolRequest]
+            async def wrapped_call(req: types.CallToolRequest) -> types.ServerResult:
+                metrics.ensure_started()
+                start = time.perf_counter()
+                is_error, error_msg = False, None
+                try:
+                    return await original(req)
+                except Exception as e:
+                    is_error, error_msg = True, str(e)
+                    raise
+                finally:
+                    metrics.track("mcp:tools/call", resource_name=req.params.name,
+                                  duration_ms=int((time.perf_counter() - start) * 1000),
+                                  is_error=is_error, error_message=error_msg)
+            handlers[types.CallToolRequest] = wrapped_call
+
+        if types.ReadResourceRequest in handlers:
+            original_read = handlers[types.ReadResourceRequest]
+            async def wrapped_read(req: types.ReadResourceRequest) -> types.ServerResult:
+                metrics.ensure_started()
+                start = time.perf_counter()
+                is_error, error_msg = False, None
+                try:
+                    return await original_read(req)
+                except Exception as e:
+                    is_error, error_msg = True, str(e)
+                    raise
+                finally:
+                    metrics.track("mcp:resources/read", resource_name=str(req.params.uri),
+                                  duration_ms=int((time.perf_counter() - start) * 1000),
+                                  is_error=is_error, error_message=error_msg)
+            handlers[types.ReadResourceRequest] = wrapped_read
 
     def run(self, *args, **kwargs):
         self._finalize()
+        metrics.start()
         return self._server.run(*args, **kwargs)
 
     def streamable_http_app(self):
         self._finalize()
+        metrics.start()
         app = self._server.streamable_http_app()
         
         # from starlette.middleware.cors import CORSMiddleware
@@ -206,6 +255,8 @@ class OpenMCP:
         url: str | None = None,
         # Mode 3: Entrypoint (filename in entrypoints/)
         entrypoint: str | None = None,
+        # Mode 4: Dynamic function (takes args dict, returns HTML string)
+        html_fn: Callable[[dict], str] | None = None,
         # Metadata
         name: str | None = None,
         title: str | None = None,
@@ -221,6 +272,7 @@ class OpenMCP:
                 html=html,
                 url=url,
                 entrypoint=entrypoint,
+                html_fn=html_fn,
                 name=name or fn.__name__,
                 title=title,
                 description=description or fn.__doc__,
@@ -243,6 +295,10 @@ class OpenMCP:
             @wraps(fn)
             async def wrapped(*args, **kwargs) -> types.CallToolResult:
                 result = await fn(*args, **kwargs)
+                
+                if w.html_fn:
+                    w._last_args = result
+                
                 return types.CallToolResult(
                     content=[types.TextContent(type="text", text=w.invoked)],
                     structuredContent=result,

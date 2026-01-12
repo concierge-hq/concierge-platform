@@ -123,7 +123,7 @@ def login():
     print(f"\n  {bold('☁  OpenMCP')}\n")
     print(f"  Opening browser to authenticate...\n")
     
-    webbrowser.open(url)
+    # webbrowser.open(url)
     print(f"  {dim('If browser does not open, visit:')}")
     print(f"  {dim(url)}\n")
     
